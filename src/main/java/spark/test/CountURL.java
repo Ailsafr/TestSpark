@@ -10,7 +10,9 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.Duration;
@@ -62,7 +64,7 @@ public class CountURL{
 	        
 	        //对其中的单词进行统计
 	        JavaPairDStream<String, Integer> wordCounts = words.mapToPair(
-	              new PairFunction<String, String, Integer>() {
+	        	new PairFunction<String, String, Integer>() {
 	                @Override
 	                public Tuple2<String, Integer> call(String s) {
 	                	String str = "";
@@ -82,15 +84,38 @@ public class CountURL{
 	                		return new Tuple2<String, Integer>(s,1);
 	                	}
 	                }
-	              }).reduceByKey(new Function2<Integer, Integer, Integer>() {
-	                @Override
-	                public Integer call(Integer i1, Integer i2) {
-	                  return i1 + i2;
-	                }
-	              });
+	            }
+	        ).reduceByKey(new Function2<Integer, Integer, Integer>() {
+                @Override
+                public Integer call(Integer i1, Integer i2) {
+                  return i1 + i2;
+                }
+            });
+	        
+	        JavaPairDStream<Integer, String> swappedCounts = wordCounts.mapToPair(new PairFunction<Tuple2<String, Integer>, Integer, String>(){
+	        	@Override
+	        	public Tuple2<Integer, String> call(Tuple2<String, Integer> item) throws Exception {
+	                return item.swap();
+	            }
+	        });
+	        
+	        JavaPairDStream<Integer, String> sortedCounts = swappedCounts.transformToPair(
+	        	new Function<JavaPairRDD<Integer, String>, JavaPairRDD<Integer, String>>() {
+	        		public JavaPairRDD<Integer, String> call(JavaPairRDD<Integer, String> in) throws Exception {
+	        			return in.sortByKey(false);
+	        		}
+	        	}
+	        );
+	        
+	        JavaPairDStream<String, Integer> resultCounts = sortedCounts.mapToPair(new PairFunction<Tuple2<Integer, String>, String, Integer>(){
+	        	@Override
+	        	public Tuple2<String, Integer> call(Tuple2<Integer, String> item) throws Exception {
+	                return item.swap();
+	            }
+	        });
 	        
 	        //打印结果
-	        wordCounts.print(200);
+	        resultCounts.print(200);
 	       
 	        jssc.start();
 	        jssc.awaitTermination();
