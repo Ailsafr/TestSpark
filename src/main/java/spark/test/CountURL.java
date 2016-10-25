@@ -91,14 +91,14 @@ public class CountURL{
                   return i1 + i2;
                 }
             });
-	        
+	        //调换key、value
 	        JavaPairDStream<Integer, String> swappedCounts = wordCounts.mapToPair(new PairFunction<Tuple2<String, Integer>, Integer, String>(){
 	        	@Override
 	        	public Tuple2<Integer, String> call(Tuple2<String, Integer> item) throws Exception {
 	                return item.swap();
 	            }
 	        });
-	        
+	        //根据key排序
 	        JavaPairDStream<Integer, String> sortedCounts = swappedCounts.transformToPair(
 	        	new Function<JavaPairRDD<Integer, String>, JavaPairRDD<Integer, String>>() {
 	        		public JavaPairRDD<Integer, String> call(JavaPairRDD<Integer, String> in) throws Exception {
@@ -106,7 +106,7 @@ public class CountURL{
 	        		}
 	        	}
 	        );
-	        
+	        //调换key、value
 	        JavaPairDStream<String, Integer> resultCounts = sortedCounts.mapToPair(new PairFunction<Tuple2<Integer, String>, String, Integer>(){
 	        	@Override
 	        	public Tuple2<String, Integer> call(Tuple2<Integer, String> item) throws Exception {
