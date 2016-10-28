@@ -15,6 +15,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
@@ -117,6 +118,21 @@ public class CountURL{
 	        //打印结果
 	        resultCounts.print(200);
 	       
+	        //结果存入关系数据库
+	        resultCounts.foreachRDD(new VoidFunction<JavaPairRDD<String,Integer>>(){
+				@Override
+				public void call(JavaPairRDD<String, Integer> pair) throws Exception {
+					pair.foreachPartition(new VoidFunction<Iterator<Tuple2<String, Integer>>>(){
+						@Override
+						public void call(Iterator<Tuple2<String, Integer>> iterator) throws Exception {
+							importData(iterator);						}						
+					});
+					
+				}
+	        	
+	        });
+	        
+	        
 	        jssc.start();
 	        jssc.awaitTermination();
 
@@ -128,13 +144,13 @@ public class CountURL{
 	    	Connection conn = null; 
 	    	Statement st = null; 			
 			try { 
-			   Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");//加载驱动类 
-			   conn = DriverManager.getConnection("jdbc:microsoft:sqlserver://<server_name>:<1433>", "name","pwd"); 
+			   Class.forName("com.mysql.jdbc.Driver");//加载驱动类 
+			   conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test", "root","root"); 
 			   conn.setAutoCommit(false); 
 			   st = conn.createStatement(); 			  			   
 			   while(iterator.hasNext()){
 				  Tuple2<String, Integer> tuple =  iterator.next();
-				    String sqlStr = "INSERT INTO tableName VALUES('" + tuple._1 + "',"+tuple._2+")";//向数据库中插入数据 
+				    String sqlStr = "INSERT INTO counturl VALUES('" + tuple._1 + "',"+tuple._2+")";//向数据库中插入数据 
 				    st.executeUpdate(sqlStr); 
 			   }				   
 			   conn.commit(); 
